@@ -10,19 +10,25 @@ from streamlit_gsheets import GSheetsConnection
 def hide_header():
     st.markdown("""
         <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
+            /* Hide the top header bar */
+            [data-testid="stHeader"] {
+                visibility: hidden;
+                height: 0%;
+            }
+            /* Adjust the main content area to start higher up */
             .block-container {
-                padding-top: 1rem;
+                padding-top: 0rem;
                 padding-bottom: 0rem;
-                padding-left: 5rem;
-                padding-right: 5rem;
+                margin-top: -50px;
+            }
+            /* Hide the footer */
+            footer {
+                visibility: hidden;
             }
         </style>
-        """, unsafe_allow_index=True)
+        """, unsafe_allow_html=True) # Changed from unsafe_allow_index to unsafe_allow_html
 
-# Call it immediately
+# Call the function
 hide_header()
 
 # --- 1. SETTINGS & DATA HELPERS ---
