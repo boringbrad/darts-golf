@@ -7,29 +7,53 @@ import uuid
 import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 
+# 1. This MUST be the first Streamlit command
+st.set_page_config(
+    page_title="Dart Golf Pro", 
+    layout="wide", 
+    initial_sidebar_state="auto" # 'auto' allows the sidebar to be found
+)
+
+# 2. Updated function to hide header but KEEP sidebar toggle
 def hide_header():
     st.markdown("""
         <style>
-            /* Hide the top header bar */
-            [data-testid="stHeader"] {
-                visibility: hidden;
-                height: 0%;
+            /* Hide the background of the header but not the element itself */
+            header[data-testid="stHeader"] {
+                background-color: rgba(0,0,0,0);
+                color: white;
             }
-            /* Adjust the main content area to start higher up */
+            
+            /* Hide the decoration line */
+            [data-testid="stDecoration"] {
+                display: none;
+            }
+
+            /* Adjust space at the top */
             .block-container {
-                padding-top: 0rem;
+                padding-top: 2rem;
                 padding-bottom: 0rem;
-                margin-top: -50px;
             }
+
+            /* Make sure the sidebar 'arrow' button is visible */
+            [data-testid="stSidebarCollapsedControl"] {
+                color: white;
+                background-color: rgba(255, 255, 255, 0.2);
+                border-radius: 8px;
+                padding: 5px;
+            }
+
             /* Hide the footer */
             footer {
                 visibility: hidden;
             }
         </style>
-        """, unsafe_allow_html=True) # Changed from unsafe_allow_index to unsafe_allow_html
+        """, unsafe_allow_html=True)
 
-# Call the function
+# 3. Call the updated function
 hide_header()
+
+
 
 # --- 1. SETTINGS & DATA HELPERS ---
 st.set_page_config(page_title="Darts Golf Pro", layout="wide")
