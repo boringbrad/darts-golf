@@ -7,12 +7,60 @@ import uuid
 import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 
+
 # 1. This MUST be the first Streamlit command
 st.set_page_config(
     page_title="Dart Golf Pro", 
     layout="wide", 
     initial_sidebar_state="auto" # 'auto' allows the sidebar to be found
 )
+
+st.markdown("""
+    <style>
+        /* 1. GLOBAL BACKGROUNDS */
+        [data-testid="stAppViewContainer"], [data-testid="stHeader"], .main, [data-testid="stSidebar"] {
+            background-color: #0e1117 !important;
+            color: #fafafa !important;
+        }
+
+        /* 2. SIDEBAR SPECIFIC */
+        [data-testid="stSidebarContent"] {
+            background-color: #1e2129 !important;
+        }
+
+        /* 3. INPUT BOXES & DROPDOWNS */
+        div[data-baseweb="select"] > div, div[data-baseweb="input"] input, .stTextInput input {
+            background-color: #1e2129 !important;
+            color: #ffffff !important;
+            border: 1px solid #00d4ff !important;
+        }
+        
+        /* Dropdown menu items */
+        div[data-baseweb="popover"] li {
+            background-color: #1e2129 !important;
+            color: #ffffff !important;
+        }
+
+        /* 4. FORCE ALL LABELS & TEXT TO WHITE */
+        p, span, label, div, h1, h2, h3, [data-testid="stMetricValue"] {
+            color: #ffffff !important;
+        }
+
+        /* 5. SCORECARD GRID FIX */
+        [data-testid="column"] {
+            background-color: #0e1117 !important;
+        }
+
+        /* 6. BIGGER BUTTONS */
+        .stButton > button {
+            width: 100% !important;
+            height: 3.5rem !important;
+            background-color: #1e2129 !important;
+            border: 2px solid #00d4ff !important;
+            color: white !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
 
 # 2. Updated function to hide header but KEEP sidebar toggle
 def hide_header():
@@ -52,6 +100,7 @@ def hide_header():
 
 # 3. Call the updated function
 hide_header()
+
 
 
 
