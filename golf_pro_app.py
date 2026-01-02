@@ -559,7 +559,7 @@ def determine_cricket_placements(game):
 
 # --- 2. NAVIGATION ---
 st.sidebar.title("🎮 Navigation")
-page = st.sidebar.radio("Navigation", ["Home", "Golf", "KO Cricket", "Stats Dashboard", "Manage Profiles"])
+page = st.sidebar.radio("Navigation", ["Home", "Golf", "KO Cricket", "Royal Rumble", "Stats Dashboard", "Manage Profiles"], label_visibility="collapsed")
 
 # --- PAGE 0: HOME ---
 if page == "Home":
@@ -571,53 +571,69 @@ if page == "Home":
     """, unsafe_allow_html=True)
     
     # Game modes section
-    col1, col2, col3 = st.columns(3)
-    
+    col1, col2, col3, col4 = st.columns(4)
+
     with col1:
         st.markdown("""
         <div style='background: rgba(255,255,255,0.05); border-radius: 12px; padding: 30px; height: 100%;'>
             <h2 style='text-align: center; margin-bottom: 20px;'>⛳ Golf</h2>
             <p style='color: #ccc; line-height: 1.6;'>
-            Classic darts golf with multiple game modes. Track your shots, view live leaderboards, 
-            and save match results to the cloud. Supports 1-6 players with detailed hole-by-hole scoring.
+            Classic darts golf with multiple game modes. Track your shots, view live leaderboards,
+            and save match results to the cloud.
             </p>
             <ul style='color: #aaa; margin-top: 15px;'>
                 <li>3 game modes: Stroke Play, Match Play, Skins</li>
                 <li>1-6 players</li>
-                <li>18 hole rounds</li>
-                <li>Tie breaker option (holes 19-20)</li>
+                <li>18 hole rounds + tie breakers</li>
                 <li>Live leaderboard</li>
                 <li>Camera feed option</li>
                 <li>Cloud save to Google Sheets</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
-    
+
     with col2:
         st.markdown("""
         <div style='background: rgba(255,255,255,0.05); border-radius: 12px; padding: 30px; height: 100%;'>
             <h2 style='text-align: center; margin-bottom: 20px;'>🥊 KO Cricket</h2>
             <p style='color: #ccc; line-height: 1.6;'>
-            Cricket with a knockout twist! Close your board, then battle in the PIN phase with a tug-of-war mechanic. 
-            Features multiplayer modes including Singles, Tag Team, Triple Threat, and Fatal 4 Way.
+            Cricket with a knockout twist! Close your board, then battle in the PIN phase with a tug-of-war mechanic.
             </p>
             <ul style='color: #aaa; margin-top: 15px;'>
-                <li>4 game modes</li>
+                <li>4 game modes: 1v1, Tag Team, Triple Threat, Fatal 4 Way</li>
                 <li>KO skip mechanic</li>
                 <li>Elimination rounds</li>
                 <li>PIN tug-of-war endgame</li>
                 <li>Camera feed option</li>
+                <li>Detailed stats tracking</li>
             </ul>
         </div>
         """, unsafe_allow_html=True)
-    
+
     with col3:
+        st.markdown("""
+        <div style='background: rgba(255,255,255,0.05); border-radius: 12px; padding: 30px; height: 100%;'>
+            <h2 style='text-align: center; margin-bottom: 20px;'>💀 Royal Rumble</h2>
+            <p style='color: #ccc; line-height: 1.6;'>
+            Battle royale cricket! Players enter at timed intervals. Hit opponents to give them marks, hit yourself to heal. Last player standing wins!
+            </p>
+            <ul style='color: #aaa; margin-top: 15px;'>
+                <li>3-20 players</li>
+                <li>Timed player entries</li>
+                <li>Custom entrance music</li>
+                <li>Healing mechanic</li>
+                <li>No-healing endgame phase</li>
+                <li>Undo support</li>
+            </ul>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col4:
         st.markdown("""
         <div style='background: rgba(255,255,255,0.05); border-radius: 12px; padding: 30px; height: 100%;'>
             <h2 style='text-align: center; margin-bottom: 20px;'>📊 Stats Dashboard</h2>
             <p style='color: #ccc; line-height: 1.6;'>
-            Comprehensive analytics for your golf and cricket games. View player performance, match history, 
-            head-to-head records, and detailed scoring breakdowns.
+            Comprehensive analytics for your golf and cricket games. View player performance, match history, and detailed scoring breakdowns.
             </p>
             <ul style='color: #aaa; margin-top: 15px;'>
                 <li>Golf & Cricket KO stats</li>
@@ -1817,6 +1833,7 @@ elif page == "KO Cricket":
             # No camera - use centered layout as before
             st.markdown("""
             <style>
+            /* Center content horizontally */
             div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlock"] {
                 width: 50% !important;
                 margin: 0 auto !important;
@@ -1825,6 +1842,24 @@ elif page == "KO Cricket":
                 div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlock"] {
                     width: 100% !important;
                 }
+            }
+
+            /* Remove height from empty vertical blocks */
+            div[data-testid="stVerticalBlock"]:empty {
+                display: none !important;
+            }
+
+            /* Collapse empty space after last element */
+            .element-container:last-child:empty,
+            div[data-testid="stVerticalBlock"]:last-child:empty {
+                display: none !important;
+                height: 0 !important;
+                min-height: 0 !important;
+            }
+
+            /* Make buttons fill vertical space better */
+            .stButton > button {
+                margin-bottom: clamp(0.5rem, 1.5vh, 2rem) !important;
             }
             </style>
             """, unsafe_allow_html=True)
@@ -2515,9 +2550,531 @@ elif page == "KO Cricket":
                         st.session_state.current_multiplier = 1
                         st.rerun()
 
-# --- PAGE 4: MANAGE PROFILES ---
+# --- PAGE 4: ROYAL RUMBLE ---
+elif page == "Royal Rumble":
+    import time
+    import base64
+
+    # Royal Rumble specific button styling
+    st.markdown("""
+    <style>
+    /* Royal Rumble button styling - all active buttons get cyan border, disabled get grey */
+    .stButton > button {
+        height: clamp(2.5rem, 5vh, 5rem) !important;
+        font-size: clamp(1rem, 2vh, 2rem) !important;
+        background-color: #1e2129 !important;
+    }
+    /* Active buttons (primary and secondary) - cyan border */
+    [data-testid="stVerticalBlock"]:has(#royal-rumble-marker) .stButton > button[kind="primary"],
+    [data-testid="stVerticalBlock"]:has(#royal-rumble-marker) .stButton > button[kind="secondary"] {
+        background-color: #1e2129 !important;
+        border: 2px solid #00d4ff !important;
+        color: white !important;
+        height: clamp(2.5rem, 5vh, 5rem) !important;
+        font-size: clamp(1rem, 2vh, 2rem) !important;
+        padding: clamp(8px, 2vh, 16px) !important;
+    }
+    [data-testid="stVerticalBlock"]:has(#royal-rumble-marker) .stButton > button[kind="primary"]:hover,
+    [data-testid="stVerticalBlock"]:has(#royal-rumble-marker) .stButton > button[kind="secondary"]:hover {
+        background-color: #2a2f3a !important;
+        border-color: #00e5ff !important;
+    }
+    /* Disabled buttons - grey border, same height/size */
+    [data-testid="stVerticalBlock"]:has(#royal-rumble-marker) .stButton > button:disabled {
+        background-color: #1e2129 !important;
+        border: 2px solid #444 !important;
+        color: #888 !important;
+        height: clamp(2.5rem, 5vh, 5rem) !important;
+        font-size: clamp(1rem, 2vh, 2rem) !important;
+        padding: clamp(8px, 2vh, 16px) !important;
+        cursor: not-allowed !important;
+    }
+    </style>
+    <div id="royal-rumble-marker" style="display: none;"></div>
+    """, unsafe_allow_html=True)
+
+    # Initialize session state for Royal Rumble
+    if 'rumble_game' not in st.session_state:
+        st.session_state.rumble_game = None
+
+    game = st.session_state.rumble_game
+
+    if game is None:
+        # Setup Phase
+        st.title("Royal Rumble Setup")
+        st.markdown("**WWE-style darts battle royale! Last player standing wins!**")
+
+        with st.sidebar:
+            st.subheader("Game Settings")
+            entry_interval = st.number_input("Entry Interval (seconds)", min_value=10, max_value=600, value=120, step=10)
+            no_healing_delay = st.number_input("No Healing After Last Entry (seconds)", min_value=0, max_value=600, value=300, step=30)
+            st.caption(f"New player every {entry_interval//60}:{entry_interval%60:02d}")
+            st.caption(f"No healing after {no_healing_delay//60}:{no_healing_delay%60:02d}")
+
+            st.divider()
+
+            # Entrance settings
+            st.subheader("Entrance Settings")
+            enable_entrances = st.toggle("Enable Entrances", value=True, help="Show entrance banners and play entrance music")
+
+            if enable_entrances:
+                music_duration = st.slider("Music Duration (seconds)", min_value=15, max_value=120, value=45, step=5)
+                st.caption(f"Entrance music plays for {music_duration} seconds")
+            else:
+                music_duration = 0
+                st.caption("Banner will show for 5 seconds (no music)")
+
+        st.divider()
+
+        # Player Setup
+        st.subheader("Player Setup (2-20 players)")
+        num_players = st.slider("Number of Players", 2, 20, 6)
+
+        players = []
+        profiles = get_profiles()
+
+        # Create columns for player input
+        cols_per_row = 2
+        for i in range(0, num_players, cols_per_row):
+            cols = st.columns(cols_per_row)
+            for j in range(cols_per_row):
+                player_idx = i + j
+                if player_idx < num_players:
+                    with cols[j]:
+                        st.markdown(f"**Player {player_idx + 1}**")
+                        name = st.selectbox(f"Name", profiles, index=0, key=f"rumble_p{player_idx}", label_visibility="collapsed")
+                        if name == "Guest":
+                            name = st.text_input("Guest Name", f"Guest {player_idx + 1}", key=f"rumble_guest_{player_idx}")
+
+                        # Music file upload (only if entrances enabled)
+                        if enable_entrances:
+                            music_file = st.file_uploader(f"Entrance Music (MP3)", type=['mp3', 'wav', 'ogg'], key=f"rumble_music_{player_idx}")
+                        else:
+                            music_file = None
+
+                        players.append({
+                            'name': name,
+                            'music_file': music_file,
+                            'music_data': None
+                        })
+
+        st.divider()
+
+        if st.button("START ROYAL RUMBLE!", type="primary", use_container_width=True):
+            # Assign random numbers (1-20)
+            import random
+            available_numbers = list(range(1, 21))
+            random.shuffle(available_numbers)
+
+            # Randomize entry order
+            entry_order = list(range(num_players))
+            random.shuffle(entry_order)
+
+            # Process music files
+            for idx, player in enumerate(players):
+                if player['music_file'] is not None:
+                    # Read and encode music file
+                    music_bytes = player['music_file'].read()
+                    player['music_data'] = base64.b64encode(music_bytes).decode()
+                    player['music_type'] = player['music_file'].type
+
+            # Initialize game state
+            st.session_state.rumble_game = {
+                'players': [
+                    {
+                        'name': players[entry_order[i]]['name'],
+                        'number': available_numbers[i],
+                        'music_data': players[entry_order[i]]['music_data'],
+                        'music_type': players[entry_order[i]].get('music_type'),
+                        'marks': 0,
+                        'eliminated': False,
+                        'entry_position': i,
+                        'has_entered': i < 2,  # First 2 start immediately
+                        'eliminated_by': None
+                    }
+                    for i in range(num_players)
+                ],
+                'active_player_indices': [0, 1],  # Indices into players array
+                'current_turn_idx': 0,  # Index into active_player_indices
+                'entry_interval': entry_interval,
+                'no_healing_delay': no_healing_delay,
+                'game_start_time': time.time(),
+                'last_entry_time': time.time(),
+                'next_entry_idx': 2,  # Next player to enter
+                'no_healing_active': False,
+                'no_healing_start': None,
+                'game_over': False,
+                'winner': None,
+                'current_entry_player': None,  # For showing entry animation
+                'paused': False,
+                'pause_time': None,
+                'total_pause_duration': 0,
+                'game_history': [],  # For undo functionality
+                'enable_entrances': enable_entrances,
+                'music_duration': music_duration
+            }
+            st.rerun()
+
+    else:
+        # Active Game
+
+        # Sidebar controls
+        with st.sidebar:
+            st.divider()
+            if st.button("Pause" if not game.get('paused', False) else "Resume", use_container_width=True):
+                if not game.get('paused', False):
+                    # Pause the game
+                    game['paused'] = True
+                    game['pause_time'] = time.time()
+                else:
+                    # Resume the game
+                    pause_duration = time.time() - game['pause_time']
+                    game['total_pause_duration'] += pause_duration
+                    game['paused'] = False
+                    game['pause_time'] = None
+                st.rerun()
+
+            if st.button("Reset Game", use_container_width=True):
+                st.session_state.rumble_game = None
+                st.rerun()
+
+        current_time = time.time()
+
+        # Adjust current time if paused
+        if game.get('paused', False):
+            current_time = game['pause_time']
+
+        # Account for total pause duration
+        adjusted_time = current_time - game['total_pause_duration']
+
+        # Show player entry animation
+        if game['current_entry_player'] is not None:
+            entering_player = game['players'][game['current_entry_player']]
+
+            # Auto-close after 5 seconds
+            import streamlit.components.v1 as components
+            components.html(f"""
+            <div id="entry-banner" style='background: linear-gradient(90deg, #ff0000, #ffaa00); padding: 30px; text-align: center; border-radius: 10px; margin: 20px 0;'>
+                <h1 style='color: #000; margin: 0; font-size: clamp(2rem, 5vh, 3rem);'>{entering_player['name']} IS ENTERING!</h1>
+                <h2 style='color: #000; margin: 10px 0; font-size: clamp(1.2rem, 3vh, 2rem);'>Number: {entering_player['number']}</h2>
+            </div>
+            <script>
+                setTimeout(function() {{
+                    window.parent.postMessage({{type: 'streamlit:setComponentValue', value: 'close_entry'}}, '*');
+                }}, 5000);
+            </script>
+            """, height=150)
+
+            # Play music (only if entrances are enabled and music exists)
+            if game.get('enable_entrances', True) and entering_player['music_data'] is not None:
+                music_duration_ms = game.get('music_duration', 45) * 1000
+                audio_html = f"""
+                <audio id="entrance-music" autoplay loop volume="1.0">
+                    <source src="data:{entering_player['music_type']};base64,{entering_player['music_data']}" type="{entering_player['music_type']}">
+                </audio>
+                <script>
+                    // Ensure music plays immediately and loudly
+                    var audio = document.getElementById('entrance-music');
+                    audio.volume = 1.0;
+                    audio.play().catch(function(error) {{
+                        console.log('Audio autoplay blocked:', error);
+                    }});
+
+                    // Stop after configured duration
+                    setTimeout(function() {{
+                        audio.pause();
+                        audio.currentTime = 0;
+                    }}, {music_duration_ms});
+                </script>
+                """
+                st.markdown(audio_html, unsafe_allow_html=True)
+
+            # Auto-close entry banner after 5 seconds
+            if 'entry_banner_time' not in game:
+                game['entry_banner_time'] = time.time()
+
+            elapsed_banner_time = time.time() - game['entry_banner_time']
+            if elapsed_banner_time >= 5:
+                game['current_entry_player'] = None
+                if 'entry_banner_time' in game:
+                    del game['entry_banner_time']
+                st.rerun()
+            else:
+                # Force refresh to check timer
+                time.sleep(0.5)
+                st.rerun()
+
+        else:
+            # Normal game display
+
+            # Show winner banner at the top if game is over
+            if game['game_over']:
+                st.markdown(f"""
+                <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; text-align: center; border-radius: 15px; margin: 30px 0;'>
+                    <h1 style='color: #fff; margin: 0; font-size: clamp(2rem, 6vh, 4rem);'>{game['winner']} WINS!</h1>
+                    <h2 style='color: #fff; margin: 20px 0; font-size: clamp(1.2rem, 3vh, 2rem);'>ROYAL RUMBLE CHAMPION!</h2>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # Live updating timers with JavaScript (no auto-reload)
+            import streamlit.components.v1 as components
+
+            # Calculate initial values
+            time_until_next = game['entry_interval'] - (adjusted_time - game['last_entry_time']) if game['next_entry_idx'] < len(game['players']) else 0
+            elapsed = adjusted_time - game['game_start_time']
+            time_until_no_healing = game['no_healing_delay'] - (adjusted_time - game['no_healing_start']) if (game['no_healing_start'] is not None and not game['no_healing_active']) else 0
+
+            is_paused = game.get('paused', False)
+            all_players_in = game['next_entry_idx'] >= len(game['players'])
+            show_healing_timer = game['no_healing_start'] is not None
+
+            components.html(f"""
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;700&display=swap');
+            </style>
+            <div id="timers" style="display: flex; justify-content: space-around; text-align: center; color: white; font-family: 'Source Sans Pro', sans-serif;">
+                <div style="flex: 1;">
+                    <div id="timer1-label" style="font-size: clamp(0.8rem, 1.5vh, 1.2rem); margin-bottom: 5px; color: white;">{'Healing Ends' if all_players_in and show_healing_timer else 'Next Entry'}</div>
+                    <div id="timer1" style="font-size: clamp(2rem, 5vh, 4rem); font-weight: bold; color: white; font-family: 'Source Sans Pro', sans-serif;">{int(time_until_no_healing // 60) if all_players_in and show_healing_timer else int(time_until_next // 60)}:{int(time_until_no_healing % 60) if all_players_in and show_healing_timer else int(time_until_next % 60):02d}</div>
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-size: clamp(0.8rem, 1.5vh, 1.2rem); margin-bottom: 5px; color: white;">Time</div>
+                    <div id="timer2" style="font-size: clamp(2rem, 5vh, 4rem); font-weight: bold; color: white; font-family: 'Source Sans Pro', sans-serif;">{int(elapsed // 60)}:{int(elapsed % 60):02d}</div>
+                </div>
+            </div>
+            <script>
+                let nextEntry = {time_until_next};
+                let gameTime = {elapsed};
+                let healingEnds = {time_until_no_healing};
+                let isPaused = {str(is_paused).lower()};
+                let allPlayersIn = {str(all_players_in).lower()};
+                let noHealingActive = {str(game.get('no_healing_active', False)).lower()};
+                let showHealingTimer = {str(show_healing_timer).lower()};
+
+                setInterval(function() {{
+                    if (!isPaused) {{
+                        // Update Timer 1 (Next Entry or Healing Ends)
+                        if (allPlayersIn && showHealingTimer) {{
+                            // Show Healing Ends timer
+                            if (!noHealingActive && healingEnds > 0) {{
+                                healingEnds--;
+                                let mins = Math.floor(healingEnds / 60);
+                                let secs = Math.floor(healingEnds % 60);
+                                document.getElementById('timer1').innerText = mins + ':' + (secs < 10 ? '0' : '') + secs;
+                                document.getElementById('timer1').style.color = 'white';
+                                document.getElementById('timer1').style.fontSize = 'clamp(2rem, 5vh, 4rem)';
+                                // Timer hit zero - events will trigger on next button press
+                            }} else if (noHealingActive) {{
+                                document.getElementById('timer1-label').innerText = 'No Healing';
+                                document.getElementById('timer1').innerText = 'ACTIVE';
+                                document.getElementById('timer1').style.color = '#ff0000';
+                                document.getElementById('timer1').style.fontSize = 'clamp(1.5rem, 4vh, 3rem)';
+                            }}
+                        }} else if (!allPlayersIn) {{
+                            // Show Next Entry timer
+                            if (nextEntry > 0) {{
+                                nextEntry--;
+                                let mins = Math.floor(nextEntry / 60);
+                                let secs = Math.floor(nextEntry % 60);
+                                document.getElementById('timer1').innerText = mins + ':' + (secs < 10 ? '0' : '') + secs;
+                            }} else {{
+                                // Timer at zero, show 0:00
+                                document.getElementById('timer1').innerText = '0:00';
+                            }}
+                        }} else {{
+                            // All players in, waiting for healing timer to start
+                            document.getElementById('timer1-label').innerText = 'All Players In';
+                            document.getElementById('timer1').innerText = '--:--';
+                        }}
+
+                        // Update Timer 2 (Game Time)
+                        gameTime++;
+                        let mins2 = Math.floor(gameTime / 60);
+                        let secs2 = Math.floor(gameTime % 60);
+                        document.getElementById('timer2').innerText = mins2 + ':' + (secs2 < 10 ? '0' : '') + secs2;
+                    }}
+                }}, 1000);
+            </script>
+            """, height=80)
+
+            st.divider()
+
+            current_player_game_idx = game['active_player_indices'][game['current_turn_idx']] if game['active_player_indices'] else None
+
+            # All Players Display - 2 columns (compact header) - shows active and eliminated
+            st.markdown("<h3 style='font-size: clamp(1rem, 2vh, 1.5rem); margin-bottom: 5px;'>Players</h3>", unsafe_allow_html=True)
+
+            # Display all players in turn order (active_player_indices order), then eliminated
+            player_cols = st.columns(2)
+
+            # Build display order: active players in turn order, then eliminated players
+            display_order = []
+
+            # First, add all active players in their turn order
+            for player_idx in game['active_player_indices']:
+                if game['players'][player_idx]['has_entered'] and not game['players'][player_idx]['eliminated']:
+                    display_order.append(player_idx)
+
+            # Then add eliminated players (in entry order)
+            for i, player in enumerate(game['players']):
+                if player['has_entered'] and player['eliminated']:
+                    display_order.append(i)
+
+            for idx, i in enumerate(display_order):
+                player = game['players'][i]
+                if player['has_entered']:  # Only show players who have entered
+                    is_current = (i == current_player_game_idx)
+                    is_eliminated = player['eliminated']
+                    arrow = "➡️ " if is_current else ""
+
+                    if is_eliminated:
+                        # Grey out eliminated players
+                        border = "border-left: 5px solid #555;"
+                        opacity = "opacity: 0.4;"
+                        bar_color = "#666"
+                    else:
+                        border = "border-left: 5px solid #ffaa00;" if is_current else "border-left: 5px solid transparent;"
+                        opacity = ""
+                        # Progress bar
+                        progress_pct = (player['marks'] / 10) * 100
+                        bar_color = "#00ff00" if player['marks'] < 5 else ("#ffaa00" if player['marks'] < 8 else "#ff0000")
+
+                    progress_pct = (player['marks'] / 10) * 100
+
+                    with player_cols[idx % 2]:
+                        st.markdown(f"""
+                        <div style='{border} background: rgba(255,255,255,0.05); padding: 6px 8px; margin: 2px 0; border-radius: 6px; {opacity}'>
+                            <div style='font-size: clamp(0.85rem, 1.8vh, 1.3rem); font-weight: bold;'>{arrow}{player['name']} (#{player['number']}){' - ELIMINATED' if is_eliminated else ''}</div>
+                            <div style='background: #333; border-radius: 8px; height: clamp(16px, 2.5vh, 24px); margin-top: 4px; position: relative;'>
+                                <div style='background: {bar_color}; width: {progress_pct}%; height: 100%; border-radius: 8px; transition: width 0.3s;'></div>
+                                <div style='position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-weight: bold; font-size: clamp(0.65rem, 1.2vh, 0.9rem);'>{player['marks']}/10</div>
+                            </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+            # Number Pad for Scoring
+            st.markdown(f"<h3 style='font-size: clamp(1rem, 2vh, 1.5rem); margin: 10px 0 5px 0;'>➡️ {game['players'][current_player_game_idx]['name']}'s Turn</h3>", unsafe_allow_html=True)
+            st.markdown("<p style='font-size: clamp(0.7rem, 1.3vh, 0.9rem); opacity: 0.7; margin-bottom: 8px;'>Click a number that was hit</p>", unsafe_allow_html=True)
+
+            # Create number pad (1-20) in a 4x5 grid
+            nums_per_row = 5
+            for row in range(4):
+                cols = st.columns(nums_per_row)
+                for col_idx in range(nums_per_row):
+                    num = row * nums_per_row + col_idx + 1
+                    if num <= 20:
+                        with cols[col_idx]:
+                            # Check if this number belongs to an active player
+                            number_owner = None
+                            for i in game['active_player_indices']:
+                                if game['players'][i]['number'] == num and not game['players'][i]['eliminated']:
+                                    number_owner = i
+                                    break
+
+                            disabled = (number_owner is None)
+
+                            # All numbers are buttons, disabled ones just can't be clicked
+                            button_type = "primary" if (not disabled and number_owner == current_player_game_idx) else "secondary"
+                            button_clicked = st.button(str(num), use_container_width=True, key=f"num_{num}", type=button_type, disabled=disabled)
+
+                            if button_clicked and not disabled:
+                                # Save state for undo
+                                import copy
+                                game['game_history'].append(copy.deepcopy({
+                                    'players': game['players'],
+                                    'active_player_indices': game['active_player_indices'],
+                                    'current_turn_idx': game['current_turn_idx']
+                                }))
+
+                                # Hit this number
+                                target_player = game['players'][number_owner]
+                                current_player = game['players'][current_player_game_idx]
+
+                                if number_owner == current_player_game_idx:
+                                    # Hit own number - can only heal if not in no-healing phase
+                                    if not game['no_healing_active']:
+                                        target_player['marks'] = max(0, target_player['marks'] - 1)
+                                else:
+                                    # Hit opponent - give them a mark
+                                    target_player['marks'] += 1
+
+                                    # Check for elimination
+                                    if target_player['marks'] >= 10:
+                                        target_player['eliminated'] = True
+                                        target_player['eliminated_by'] = current_player['name']
+
+                                        # Remove from active players
+                                        game['active_player_indices'].remove(number_owner)
+
+                                        # Adjust current_turn_idx if needed
+                                        if game['current_turn_idx'] >= len(game['active_player_indices']):
+                                            game['current_turn_idx'] = 0
+
+                                        # Check for winner (only if all players have entered)
+                                        all_players_entered = game['next_entry_idx'] >= len(game['players'])
+                                        if len(game['active_player_indices']) == 1 and all_players_entered:
+                                            game['game_over'] = True
+                                            game['winner'] = game['players'][game['active_player_indices'][0]]['name']
+
+                                st.rerun()
+
+            # Control Buttons - Undo and Next Player
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Undo", use_container_width=True, disabled=len(game['game_history']) == 0):
+                    if game['game_history']:
+                        # Restore previous state
+                        prev_state = game['game_history'].pop()
+                        game['players'] = prev_state['players']
+                        game['active_player_indices'] = prev_state['active_player_indices']
+                        game['current_turn_idx'] = prev_state['current_turn_idx']
+                        st.rerun()
+            with col2:
+                if st.button("Next Player", use_container_width=True):
+                    # Check if it's time for a new player to enter
+                    current_time = time.time()
+                    adjusted_time = current_time - game['total_pause_duration']
+
+                    if not game.get('paused', False) and game['next_entry_idx'] < len(game['players']) and game.get('current_entry_player') is None:
+                        time_since_last_entry = adjusted_time - game['last_entry_time']
+                        if time_since_last_entry >= game['entry_interval']:
+                            # Timer hit zero - new player enters!
+                            new_player_idx = game['next_entry_idx']
+
+                            # Insert the new player right after the current player in active_player_indices
+                            insert_position = game['current_turn_idx'] + 1
+                            game['active_player_indices'].insert(insert_position, new_player_idx)
+
+                            # Mark player as entered
+                            game['players'][new_player_idx]['has_entered'] = True
+
+                            game['last_entry_time'] = adjusted_time
+                            game['next_entry_idx'] += 1
+                            game['current_entry_player'] = new_player_idx
+
+                            # Make the new player the current turn (they go immediately)
+                            game['current_turn_idx'] = insert_position
+
+                            # Check if this was the last player
+                            if game['next_entry_idx'] >= len(game['players']):
+                                game['no_healing_start'] = adjusted_time
+
+                            st.rerun()
+
+                    # Check if no-healing should activate (timer hit zero and Next Player pressed)
+                    if not game.get('paused', False) and game['no_healing_start'] is not None and not game['no_healing_active']:
+                        time_since_no_healing_start = adjusted_time - game['no_healing_start']
+                        if time_since_no_healing_start >= game['no_healing_delay']:
+                            game['no_healing_active'] = True
+
+                    # Advance to next player (only if no entry happened)
+                    game['current_turn_idx'] = (game['current_turn_idx'] + 1) % len(game['active_player_indices'])
+                    st.rerun()
+
+
+# --- PAGE 5: MANAGE PROFILES ---
 elif page == "Manage Profiles":
-    st.title("👤 Manage Profiles")
+    st.title("Manage Profiles")
     st.markdown("Add or delete player profiles. Profiles are used for quick selection in Golf and Cricket games.")
 
     st.divider()
@@ -2526,13 +3083,13 @@ elif page == "Manage Profiles":
     profiles = get_profiles()
 
     # Add Profile Section
-    st.subheader("➕ Add New Profile")
+    st.subheader("Add New Profile")
     col1, col2 = st.columns([3, 1])
     with col1:
         new_profile_name = st.text_input("Profile Name", key="new_profile_input", placeholder="Enter player name")
     with col2:
         st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
-        if st.button("💾 Save Profile", use_container_width=True, type="primary"):
+        if st.button("Save Profile", use_container_width=True, type="primary"):
             if new_profile_name.strip():
                 if new_profile_name.strip() in profiles:
                     st.error(f"Profile '{new_profile_name}' already exists!")
@@ -2546,7 +3103,7 @@ elif page == "Manage Profiles":
     st.divider()
 
     # Delete Profile Section
-    st.subheader("🗑️ Delete Profiles")
+    st.subheader("Delete Profiles")
 
     if len(profiles) > 1 or (len(profiles) == 1 and profiles[0] != "Guest"):
         # Show profiles as cards with delete buttons
@@ -2563,7 +3120,7 @@ elif page == "Manage Profiles":
                             <div style='font-size: 24px; font-weight: bold; margin-bottom: 10px;'>{profile}</div>
                         </div>
                         """, unsafe_allow_html=True)
-                        if st.button(f"🗑️ Delete", key=f"delete_{profile}", use_container_width=True):
+                        if st.button(f"Delete", key=f"delete_{profile}", use_container_width=True):
                             delete_profile(profile)
                             st.success(f"Deleted '{profile}'")
                             st.rerun()
@@ -2575,7 +3132,7 @@ elif page == "Manage Profiles":
     st.divider()
 
     # Current Profiles List
-    st.subheader("📋 Current Profiles")
+    st.subheader("Current Profiles")
     if profiles:
         st.markdown(f"**{len(profiles)} profile(s):** {', '.join(profiles)}")
     else:
