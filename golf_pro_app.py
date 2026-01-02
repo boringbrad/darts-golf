@@ -384,13 +384,29 @@ HISTORY_FILE = "golf_history_v2.csv"
 
 def get_profiles():
     if not os.path.exists(PROFILE_FILE):
-        with open(PROFILE_FILE, "w") as f: f.write("Brad\nGuest")
+        with open(PROFILE_FILE, "w") as f: f.write("")
     with open(PROFILE_FILE, "r") as f:
-        return sorted(list(set([l.strip() for l in f.readlines() if l.strip()])))
+        profiles = sorted(list(set([l.strip() for l in f.readlines() if l.strip()])))
+        # Remove Guest if it exists in the list, then add it at the end
+        if "Guest" in profiles:
+            profiles.remove("Guest")
+        profiles.append("Guest")
+        return profiles
 
 def save_profile(name):
-    if name.strip() and name.strip() != "Guest":
-        with open(PROFILE_FILE, "a") as f: f.write(f"\n{name.strip()}")
+    if name.strip():
+        profiles = get_profiles()
+        if name.strip() not in profiles:
+            with open(PROFILE_FILE, "a") as f: f.write(f"\n{name.strip()}")
+
+def delete_profile(name):
+    """Delete a profile name from the profiles file"""
+    if name.strip():
+        profiles = get_profiles()
+        if name in profiles:
+            profiles.remove(name)
+            with open(PROFILE_FILE, "w") as f:
+                f.write("\n".join(profiles))
 
 def get_venues():
     if not os.path.exists(VENUE_FILE):
@@ -543,7 +559,7 @@ def determine_cricket_placements(game):
 
 # --- 2. NAVIGATION ---
 st.sidebar.title("🎮 Navigation")
-page = st.sidebar.radio("Navigation", ["Home", "Golf", "KO Cricket", "Stats Dashboard"])
+page = st.sidebar.radio("Navigation", ["Home", "Golf", "KO Cricket", "Stats Dashboard", "Manage Profiles"])
 
 # --- PAGE 0: HOME ---
 if page == "Home":
@@ -792,7 +808,7 @@ elif page == "Golf":
         profiles = get_profiles()
         for i in range(1, num_players + 1):
             p_key = f"sel_p{i}"
-            def_idx = profiles.index("Brad") if (i==1 and "Brad" in profiles) else profiles.index("Guest")
+            def_idx = 0 if profiles else 0  # Default to first profile
             sel = st.selectbox(f"Player {i}", profiles, index=def_idx, key=p_key)
             if sel == "Guest":
                 g_name = st.text_input(f"Guest {i} Name", f"Guest {i}", key=f"g_name_{i}")
@@ -1617,7 +1633,7 @@ elif page == "Stats Dashboard":
             st.error(f"Error loading Cricket stats: {e}")
 
 # --- PAGE 3: KO CRICKET ---
-else:
+elif page == "KO Cricket":
     
     if 'cricket_game' not in st.session_state:
         st.session_state.cricket_game = None
@@ -1659,7 +1675,7 @@ else:
         profiles = get_profiles()
         for i in range(num_cricket_players):
             p_key = f"cricket_p{i}"
-            def_idx = profiles.index("Brad") if (i==0 and "Brad" in profiles) else profiles.index("Guest")
+            def_idx = 0 if profiles else 0  # Default to first profile
             sel = st.selectbox(f"Player {i+1}", profiles, index=def_idx, key=p_key)
             if sel == "Guest":
                 g_name = st.text_input(f"Guest {i+1} Name", f"Guest {i+1}", key=f"cricket_guest_{i}")
@@ -2327,13 +2343,16 @@ else:
                         # Determine correct board
                         if game['is_tag_team']:
                             board_key = 'T1' if game['current_player_idx'] in [0, 1] else 'T2'
+                            # Map tag team players to team direction: T1 (P1+P2) = 0, T2 (P3+P4) = 1
+                            team_idx = 0 if game['current_player_idx'] in [0, 1] else 1
                         else:
                             board_key = current_player_key
-                        
+                            team_idx = game['current_player_idx']
+
                         # Update pin count
                         game['pin_count'] = update_pin_count(
-                            game['pin_count'], 
-                            game['current_player_idx'],
+                            game['pin_count'],
+                            team_idx,
                             game['board_closed'][board_key]
                         )
                         
@@ -2495,3 +2514,69 @@ else:
                             game['pin_count'] = prev['pin_count']
                         st.session_state.current_multiplier = 1
                         st.rerun()
+
+# --- PAGE 4: MANAGE PROFILES ---
+elif page == "Manage Profiles":
+    st.title("👤 Manage Profiles")
+    st.markdown("Add or delete player profiles. Profiles are used for quick selection in Golf and Cricket games.")
+
+    st.divider()
+
+    # Get current profiles
+    profiles = get_profiles()
+
+    # Add Profile Section
+    st.subheader("➕ Add New Profile")
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        new_profile_name = st.text_input("Profile Name", key="new_profile_input", placeholder="Enter player name")
+    with col2:
+        st.markdown("<div style='margin-top: 32px;'></div>", unsafe_allow_html=True)
+        if st.button("💾 Save Profile", use_container_width=True, type="primary"):
+            if new_profile_name.strip():
+                if new_profile_name.strip() in profiles:
+                    st.error(f"Profile '{new_profile_name}' already exists!")
+                else:
+                    save_profile(new_profile_name.strip())
+                    st.success(f"Profile '{new_profile_name}' saved!")
+                    st.rerun()
+            else:
+                st.error("Please enter a profile name")
+
+    st.divider()
+
+    # Delete Profile Section
+    st.subheader("🗑️ Delete Profiles")
+
+    if len(profiles) > 1 or (len(profiles) == 1 and profiles[0] != "Guest"):
+        # Show profiles as cards with delete buttons
+        cols_per_row = 3
+        profile_list = [p for p in profiles if p != "Guest"]  # Don't show Guest in delete list
+
+        if profile_list:
+            for i in range(0, len(profile_list), cols_per_row):
+                cols = st.columns(cols_per_row)
+                for j, profile in enumerate(profile_list[i:i+cols_per_row]):
+                    with cols[j]:
+                        st.markdown(f"""
+                        <div style='background: rgba(255,255,255,0.05); border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 10px;'>
+                            <div style='font-size: 24px; font-weight: bold; margin-bottom: 10px;'>{profile}</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        if st.button(f"🗑️ Delete", key=f"delete_{profile}", use_container_width=True):
+                            delete_profile(profile)
+                            st.success(f"Deleted '{profile}'")
+                            st.rerun()
+        else:
+            st.info("No custom profiles to delete. Only 'Guest' exists as a fallback.")
+    else:
+        st.info("No profiles to delete. Add some profiles first!")
+
+    st.divider()
+
+    # Current Profiles List
+    st.subheader("📋 Current Profiles")
+    if profiles:
+        st.markdown(f"**{len(profiles)} profile(s):** {', '.join(profiles)}")
+    else:
+        st.info("No profiles saved yet")
