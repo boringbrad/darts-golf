@@ -8,6 +8,16 @@ import random
 import plotly.express as px
 from streamlit_gsheets import GSheetsConnection
 
+# --- CUSTOM COLORS (High-Contrast for Darts) ---
+ULTRA_COLOR_MAP = {
+    "1": "#FFD700", # Gold (Hole-in-One)
+    "2": "#00FF00", # Neon Green
+    "3": "#228B22", # Forest Green
+    "4": "#FFFFFF", # Pure White (Par)
+    "5": "#FF4B4B", # Light Red (Bogey)
+    "6": "#8B0000"  # Deep Crimson (Double Bogey)
+}
+
 
 # 1. This MUST be the first Streamlit command
 st.set_page_config(
@@ -274,22 +284,41 @@ def get_player_header_html(game, player_idx):
     """
 
 def advance_to_next_player(game):
-    """Advance to next non-eliminated player, handling tag team rotation"""
+    """
+    Forces all unused darts to be recorded as 'Miss' before 
+    moving to the next player.
+    """
+    p_key = f"P{game['current_player_idx'] + 1}"
+    
+    # 1. IDENTIFY REMAINING DARTS
+    # If dart_count is 1, we need to fill indices 1 and 2.
+    # If dart_count is 2, we need to fill index 2.
+    for i in range(game['dart_count'], 3):
+        # Fill the visual/stat list with a Miss
+        game['dart_hits'][i] = 'Miss'
+        
+        # Increment the total darts count for the player's career stats
+        game['total_darts'][p_key] += 1
+        
+        # Log 0 marks for these darts
+        game['marks_per_dart'][i] = 0
+
+    # 2. RESET TURN COUNTERS FOR THE NEXT PERSON
+    # Note: We reset these ONLY AFTER we've finished the logic above
+    game['dart_count'] = 0
+    # We clear the visual hits for the next player's UI
+    game['dart_hits'] = ['', '', '']
+    game['marks_per_dart'] = [0, 0, 0]
+
+    # 3. ROTATION LOGIC (Keep your existing code below)
     if game['is_tag_team']:
-        # Tag team: alternate between teams
-        # P1(T1) → P3(T2) → P2(T1) → P4(T2) → P1...
         current = game['current_player_idx']
-        if current == 0:  # P1 → P3
-            next_idx = 2
-        elif current == 2:  # P3 → P2
-            next_idx = 1
-        elif current == 1:  # P2 → P4
-            next_idx = 3
-        else:  # P4 → P1
-            next_idx = 0
+        if current == 0: next_idx = 2
+        elif current == 2: next_idx = 1
+        elif current == 1: next_idx = 3
+        else: next_idx = 0
         game['current_player_idx'] = next_idx
     else:
-        # Regular rotation, skip eliminated players
         next_idx = (game['current_player_idx'] + 1) % game['num_players']
         while game['eliminated'][f"P{next_idx + 1}"]:
             next_idx = (next_idx + 1) % game['num_players']
@@ -785,7 +814,7 @@ elif page == "Golf":
     with st.sidebar:
         st.title("⛳ Match Setup")
         st.subheader("📍 Venue")
-        venue_list = ["The Mullet", "Cake House", "Smokey Mountain", "Other"]
+        venue_list = ["The Mullet", "Cake House", "Smokey Mountain", "Dart Dungeon", "Other"]
         venue_choice = st.selectbox("Where are we playing?", venue_list)
         if venue_choice == "Other":
             final_venue = st.text_input("Enter Venue Name", "Private Club")
@@ -1234,122 +1263,147 @@ elif page == "Stats Dashboard":
             if df.empty:
                 st.info("No match history found in Google Sheets.")
             else:
+                # --- PRE-PROCESSING ---
                 df['Hole_Scores'] = df['Hole_Scores'].apply(lambda x: json.loads(x) if isinstance(x, str) else x)
                 df['Date'] = pd.to_datetime(df['Date']).dt.date
                 df['Total'] = pd.to_numeric(df['Total'])
                 df['Rank'] = df.groupby('Match_ID')['Total'].rank(method='min', ascending=True)
                 df['Is_Winner'] = df['Rank'] == 1
 
+                # --- SIDEBAR FILTERS ---
                 st.sidebar.header("Filter Statistics")
                 all_players = sorted(df['Player'].unique())
                 all_venues = sorted(df['Venue'].unique())
                 
-                # Initialize session state for Golf filters
-                if 'golf_selected_players' not in st.session_state:
-                    st.session_state.golf_selected_players = all_players
-                if 'golf_selected_venues' not in st.session_state:
-                    st.session_state.golf_selected_venues = all_venues
-                
-                # Players filter
-                selected_players = st.sidebar.multiselect(
-                    "Select Players", 
-                    options=all_players, 
-                    default=st.session_state.golf_selected_players
-                )
-                st.session_state.golf_selected_players = selected_players
-                
-                col_p1, col_p2 = st.sidebar.columns(2)
-                with col_p1:
-                    if st.button("Select All", key="golf_select_all_players"):
-                        st.session_state.golf_selected_players = all_players
-                with col_p2:
-                    if st.button("Clear", key="golf_clear_players"):
-                        st.session_state.golf_selected_players = []
-                
-                # Venues filter
-                selected_venues = st.sidebar.multiselect(
-                    "Select Venues", 
-                    options=all_venues, 
-                    default=st.session_state.golf_selected_venues
-                )
-                st.session_state.golf_selected_venues = selected_venues
-                
-                col_v1, col_v2 = st.sidebar.columns(2)
-                with col_v1:
-                    if st.button("Select All", key="golf_select_all_venues"):
-                        st.session_state.golf_selected_venues = all_venues
-                with col_v2:
-                    if st.button("Clear", key="golf_clear_venues"):
-                        st.session_state.golf_selected_venues = []
+                selected_players = st.sidebar.multiselect("Select Players", options=all_players, default=[])
+                selected_venues = st.sidebar.multiselect("Select Venues", options=all_venues, default=[])
 
-            filtered_df = df[(df['Player'].isin(selected_players)) & (df['Venue'].isin(selected_venues))]
+                # --- FILTER DATA ---
+                filtered_df = df[(df['Player'].isin(selected_players)) & (df['Venue'].isin(selected_venues))]
 
-            st.subheader("📍 Venue Course Records")
-            venue_records = df.loc[df.groupby('Venue')['Total'].idxmin()][['Venue', 'Player', 'Total', 'Date']]
-            v_recs = venue_records[venue_records['Venue'].isin(selected_venues)]
-            cols = st.columns(min(len(v_recs), 4))
-            for idx, row in enumerate(v_recs.itertuples()):
-                cols[idx % len(cols)].metric(row.Venue, f"{row.Total} pts", f"By {row.Player}")
+                # --- MAIN CONTENT CHECK ---
+                if not selected_players or not selected_venues:
+                    st.info("👋 Welcome! Please select at least one Player and Venue from the sidebar to view stats.")
+                elif filtered_df.empty:
+                    st.warning("No matches found for this specific selection.")
+                else:
+                    # --- DATA PROCESSING (Build h_df) ---
+                    all_hole_data = []
+                    for _, row in filtered_df.iterrows():
+                        scores = row['Hole_Scores']
+                        if isinstance(scores, list) and len(scores) == 18:
+                            for h_idx, score in enumerate(scores):
+                                all_hole_data.append({
+                                    'Player': row['Player'],
+                                    'Hole': h_idx + 1,
+                                    'Score': score,
+                                    'Is_Ace': 1 if score == 1 else 0,
+                                    'Is_Bogey': 1 if score >= 5 else 0
+                                })
+                    h_df = pd.DataFrame(all_hole_data)
 
-            st.divider()
+                    # --- 1. VENUE RECORDS ---
+                    st.subheader("📍 Venue Course Records")
+                    venue_records = df.loc[df.groupby('Venue')['Total'].idxmin()][['Venue', 'Player', 'Total', 'Date']]
+                    v_recs = venue_records[venue_records['Venue'].isin(selected_venues)]
+                    
+                    if not v_recs.empty:
+                        num_cols = min(len(v_recs), 4)
+                        cols = st.columns(num_cols)
+                        for idx, row in enumerate(v_recs.itertuples()):
+                            cols[idx % num_cols].metric(row.Venue, f"{row.Total} pts", f"By {row.Player}")
 
-            st.subheader("📈 Performance Trends")
-            if not filtered_df.empty:
-                chart_data = filtered_df.sort_values('Date')
-                st.line_chart(chart_data, x='Date', y='Total', color='Player', use_container_width=True)
-                st.caption("Lower scores are better. Use the sidebar to isolate specific players.")
-            else:
-                st.warning("Adjust filters to view trend data.")
+                    # --- 2. PERFORMANCE TRENDS & POTENTIAL ---
+                    st.divider()
+                    st.subheader("📈 Performance Trends (By Game Number)")
+                    
+                    # Calculate Skill Potential (EV)
+                    score_dist = h_df['Score'].value_counts(normalize=True)
+                    current_ev_per_hole = sum(s * score_dist.get(s, 0) for s in range(1, 7))
+                    total_ev_game = current_ev_per_hole * 18
 
-            with st.expander("⚔️ Head-to-Head Win Matrix", expanded=False):
-                matrix_data = []
-                for p1 in all_players:
-                    row = {'Player': p1}
-                    for p2 in all_players:
-                        if p1 == p2:
-                            row[p2] = "-"
-                        else:
-                            m1 = df[df['Player'] == p1]['Match_ID']
-                            m2 = df[df['Player'] == p2]['Match_ID']
-                            common_matches = set(m1).intersection(set(m2))
-                            p1_wins = df[(df['Match_ID'].isin(common_matches)) & (df['Player'] == p1) & (df['Is_Winner'])].shape[0]
-                            row[p2] = p1_wins
-                    matrix_data.append(row)
-                st.dataframe(pd.DataFrame(matrix_data).set_index('Player'), use_container_width=True)
+                    # Create Game Number sequence for each player
+                    chart_data = filtered_df.sort_values('Date').copy()
+                    chart_data['Game_Number'] = chart_data.groupby('Player').cumcount() + 1
+                    
+                    # Calculate Moving Average based on Game Number
+                    chart_data['10_Game_Avg'] = chart_data.groupby('Player')['Total'].transform(
+                        lambda x: x.rolling(window=10, min_periods=1).mean()
+                    )
+                    
+                    import plotly.express as px
+                    
+                    # Changed x from 'Date' to 'Game_Number'
+                    fig_trend = px.line(chart_data, 
+                                        x='Game_Number', 
+                                        y='Total', 
+                                        color='Player', 
+                                        markers=True,
+                                        hover_data=['Date', 'Total'],
+                                        template="plotly_dark",
+                                        title="Score Progression")
 
-            st.subheader("🎯 Achievement Tracking")
-            all_hole_data = []
-            for _, row in filtered_df.iterrows():
-                for h_idx, score in enumerate(row['Hole_Scores']):
-                    all_hole_data.append({
-                        'Player': row['Player'],
-                        'Hole': h_idx + 1,
-                        'Score': score,
-                        'Is_Ace': 1 if score == 1 else 0,
-                        'Is_Bogey': 1 if score >= 5 else 0
-                    })
-            h_df = pd.DataFrame(all_hole_data)
+                    # Add the Statistical Potential line
+                    fig_trend.add_hline(y=total_ev_game, line_dash="dash", line_color="cyan", 
+                                        annotation_text=f"Current Potential: {total_ev_game:.1f}")
+                    
+                    fig_trend.update_layout(xaxis_title="Game Number (Chronological Order)",
+                                            yaxis_title="Total Score")
+                    
+                    st.plotly_chart(fig_trend, use_container_width=True)
+                    st.caption("This chart shows your progress over time. Lower is better.")
 
-            if not h_df.empty:
-                c1, c2, c3 = st.columns(3)
-                with c1:
-                    ace_stats = h_df.groupby('Player')['Is_Ace'].sum().sort_values(ascending=False)
-                    st.write("**🏆 Total Aces**")
-                    st.dataframe(ace_stats, use_container_width=True)
-                with c2:
-                    bogey_stats = h_df.groupby('Player')['Is_Bogey'].sum().sort_values(ascending=False)
-                    st.write("**💀 Total Bogeys**")
-                    st.dataframe(bogey_stats, use_container_width=True)
-                with c3:
-                    nemesis = h_df.groupby(['Player', 'Hole'])['Score'].mean().reset_index()
-                    worst_holes = nemesis.loc[nemesis.groupby('Player')['Score'].idxmax()]
-                    st.write("**👹 Nemesis Hole**")
-                    st.dataframe(worst_holes[['Player', 'Hole', 'Score']].rename(columns={'Score': 'Avg'}), hide_index=True)
+                    # --- 3. ACCURACY & NEMESIS TRACKER ---
+                    st.divider()
+                    col_acc1, col_acc2 = st.columns([1, 2])
 
-            st.divider()
-            st.subheader("📜 Detailed Match History")
-            history_df = filtered_df[['Date', 'Venue', 'Player', 'Total', 'Opponents']].sort_values('Date', ascending=False)
-            st.dataframe(history_df, use_container_width=True, hide_index=True)
+                    with col_acc1:
+                        st.subheader("🎯 Shot Accuracy")
+                        acc_counts = h_df['Score'].value_counts().reset_index()
+                        acc_counts.columns = ['Score', 'Count']
+                        acc_counts['Score'] = acc_counts['Score'].astype(str)
+                        
+                        fig_pie = px.pie(acc_counts, values='Count', names='Score', 
+                                         color='Score', color_discrete_map=ULTRA_COLOR_MAP,
+                                         hole=0.4, category_orders={"Score": ["1", "2", "3", "4", "5", "6"]})
+                        fig_pie.update_layout(template="plotly_dark", showlegend=False, height=350)
+                        st.plotly_chart(fig_pie, use_container_width=True)
+
+                    with col_acc2:
+                        st.subheader("⛳ EV Nemesis Tracker")
+                        hole_ev = h_df.groupby('Hole')['Score'].mean().reset_index()
+                        hole_ev['Color'] = ['#00FF00' if x <= 4.0 else '#FF4B4B' for x in hole_ev['Score']]
+                        
+                        fig_ev_bar = px.bar(hole_ev, x='Hole', y='Score', text_auto='.2f')
+                        fig_ev_bar.update_traces(marker_color=hole_ev['Color'])
+                        fig_ev_bar.add_hline(y=4.0, line_dash="dot", line_color="white")
+                        fig_ev_bar.update_layout(template="plotly_dark", yaxis_title="EV (Avg Score)", xaxis=dict(dtick=1))
+                        st.plotly_chart(fig_ev_bar, use_container_width=True)
+
+                    # --- 4. PROBABILITY & EV HEATMAP ---
+                    st.divider()
+                    st.subheader("📊 Scoring Probability & EV Heatmap")
+                    prob_matrix = pd.crosstab(h_df['Score'], h_df['Hole'], normalize='columns') * 100
+                    prob_matrix.index = [f"Score {int(i)}" for i in prob_matrix.index]
+                    
+                    ev_list = h_df.groupby('Hole')['Score'].mean()
+                    ev_row = pd.DataFrame([ev_list.values], columns=prob_matrix.columns, index=["EXPECTED VALUE"])
+                    combined_df = pd.concat([prob_matrix, ev_row])
+                    
+                    def format_vals(val):
+                        return f"{val:.2f}" if val < 7 else f"{val:.1f}%"
+
+                    st.dataframe(
+                        combined_df.style.format(format_vals).background_gradient(
+                            cmap="RdYlGn_r", axis=1, subset=pd.IndexSlice[["EXPECTED VALUE"], :]
+                        ), use_container_width=True
+                    )
+
+                    # --- 5. DETAILED HISTORY ---
+                    st.divider()
+                    st.subheader("📜 Detailed Match History")
+                    history_df = filtered_df[['Date', 'Venue', 'Player', 'Total', 'Opponents']].sort_values('Date', ascending=False)
+                    st.dataframe(history_df, use_container_width=True, hide_index=True)
 
         except Exception as e:
             st.error(f"Error generating stats: {e}")
@@ -2506,24 +2560,34 @@ elif page == "KO Cricket":
                             game['dart_hits'] = ['', '', '']
                     st.rerun()
             
+            
             # C6: Next Player
-            with mult_cols[5]:
-                if st.button("Next Player", use_container_width=True, key="next_player"):
-                    # Fill remaining darts with misses
-                    while game['dart_count'] < 3:
-                        game['marks_per_dart'][game['dart_count']] = 0
-                        game['dart_hits'][game['dart_count']] = "MISS"
-                        game['dart_count'] += 1
+        with mult_cols[5]:
+            if st.button("Next Player", use_container_width=True, key="next_player"):
+                current_player_key = f"P{game['current_player_idx'] + 1}"
+                
+                # --- CRITICAL FIX: Increment the actual total_darts counter ---
+                while game['dart_count'] < 3:
+                    # Update the round-specific lists
+                    game['marks_per_dart'][game['dart_count']] = 0
+                    game['dart_hits'][game['dart_count']] = "MISS"
                     
-                    # Move to next non-eliminated player
-                    current_player_key = f"P{game['current_player_idx'] + 1}"
-                    advance_to_next_player(game)
-                    game['dart_count'] = 0
-                    game['marks_per_dart'] = [0, 0, 0]
-                    game['dart_hits'] = ['', '', '']
-                    game['consecutive_skips'][current_player_key] = 0
-                    st.session_state.current_multiplier = 1
-                    st.rerun()
+                    # Update the PERMANENT stats counter for the player
+                    game['total_darts'][current_player_key] += 1
+                    
+                    # Move to the next dart slot in the round
+                    game['dart_count'] += 1
+                
+                # Move to next non-eliminated player
+                advance_to_next_player(game)
+                
+                # Reset turn-based UI states
+                game['dart_count'] = 0
+                game['marks_per_dart'] = [0, 0, 0]
+                game['dart_hits'] = ['', '', '']
+                game['consecutive_skips'][current_player_key] = 0
+                st.session_state.current_multiplier = 1
+                st.rerun()
             
             # C7: Undo
             with mult_cols[6]:
